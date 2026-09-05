@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Enviar a REDTVPOINT</title>
+<style>body{font:18px system-ui;background:#08090d;color:white;max-width:540px;margin:32px auto;padding:20px}h1{color:#ff3344}label{display:block;margin-top:24px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #666}button{background:#bd1024;color:white;font-weight:bold}button:disabled{opacity:.5}p{line-height:1.5}#status{background:#222;padding:16px;border-radius:10px}</style>
+<h1>▶ REDTVPOINT</h1><p>Envía un vídeo a tu TV. Mantén Safari abierto hasta completar el envío.</p>
+<label for="code">Código que aparece en la TV</label><input id="code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6 cifras">
+<label for="video">Vídeo de Fotos o Archivos (máximo 500 MB)</label><input type="file" id="video" accept="video/*,.mp4,.mov,.m4v"><button id="upload">Enviar vídeo</button>
+<label for="url">O un enlace directo a un vídeo</label><input id="url" type="url" placeholder="https://…/video.mp4"><button id="link">Enviar enlace</button>
+<p id="status" role="status" aria-live="polite">Listo para enviar.</p><p>No es AirPlay. Los enlaces a páginas de YouTube, Netflix u otras aplicaciones no son enlaces directos. La reproducción depende del formato compatible con tu Fire Stick.</p>
+<script>
+const el=id=>document.getElementById(id);
+function send(path,body){
+ if(!/^\d{6}$/.test(el('code').value)){el('status').textContent='Escribe el código de seis cifras de la TV.';return;}
+ el('upload').disabled=el('link').disabled=true;
+ const xhr=new XMLHttpRequest();xhr.open('POST',path);xhr.timeout=900000;
+ xhr.setRequestHeader('X-Pair-Code',el('code').value);xhr.setRequestHeader('Content-Type','application/octet-stream');
+ xhr.upload.onprogress=e=>{el('status').textContent=e.lengthComputable?'Enviando: '+Math.round(e.loaded/e.total*100)+'%':'Enviando…';};
+ xhr.onload=()=>{el('status').textContent=xhr.responseText;};
+ xhr.onerror=()=>{el('status').textContent='No se pudo enviar. Comprueba la Wi-Fi y activa Desde iPhone en la TV.';};
+ xhr.ontimeout=()=>{el('status').textContent='Se agotó el tiempo. Prueba con un vídeo más corto.';};
+ xhr.onloadend=()=>{el('upload').disabled=el('link').disabled=false;};
+ el('status').textContent='Preparando envío…';xhr.send(body);
+}
+el('upload').onclick=()=>{const file=el('video').files[0];if(!file){el('status').textContent='Selecciona un vídeo primero.';return;}if(file.size>500*1024*1024||file.size===0){el('status').textContent='Elige un vídeo entre 1 byte y 500 MB.';return;}send('/video',file);};
+el('link').onclick=()=>{let url;try{url=new URL(el('url').value.trim());}catch{el('status').textContent='Introduce un enlace válido.';return;}if(!['http:','https:'].includes(url.protocol)){el('status').textContent='El enlace debe empezar por http:// o https://.';return;}send('/link',url.href);};
+</script></html>

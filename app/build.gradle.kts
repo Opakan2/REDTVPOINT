@@ -10,8 +10,8 @@ android {
         applicationId = "com.redtvpoint.tv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -21,6 +21,7 @@ android {
 }
 kotlin { jvmToolchain(17) }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     val composeBom = platform("androidx.compose:compose-bom:2025.08.00")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.10.1")

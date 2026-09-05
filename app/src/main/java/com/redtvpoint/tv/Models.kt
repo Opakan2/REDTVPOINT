@@ -7,3 +7,5 @@ data class SeriesItem(val series_id:Int=0, val name:String="", val cover:String?
 data class AuthResponse(val user_info:UserInfo?=null)
 data class UserInfo(val auth:Int=0, val status:String?=null, val exp_date:String?=null)
 data class Credentials(val server:String, val username:String, val password:String)
+data class SeriesInfo(val episodes:Map<String,List<Episode>>?=null)
+data class Episode(val id:String="", val title:String="Episodio", val container_extension:String?="mp4")
