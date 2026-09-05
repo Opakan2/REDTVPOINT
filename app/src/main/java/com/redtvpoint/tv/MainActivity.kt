@@ -75,6 +75,7 @@ class MainActivity: ComponentActivity() {
         Column(Modifier.width(560.dp).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement=Arrangement.spacedBy(8.dp)){
             Text("▶ REDTVPOINT", color=Red,fontSize=32.sp,fontWeight=FontWeight.Black)
             Text("Elige un campo con ↑ ↓ y pulsa OK para editar.",color=Color.LightGray)
+            Text("Servidor: dominio:puerto usa HTTP (443 usa HTTPS). También puedes indicar http:// o https://.",color=Color.Gray,fontSize=12.sp)
             RemoteField("Servidor / URL", server, modifier=Modifier.focusRequester(first).focusProperties { up=FocusRequester.Cancel; down=usernameFocus }, enabled=!connecting) { server=it }
             RemoteField("Usuario", user, modifier=Modifier.focusRequester(usernameFocus).focusProperties { up=first; down=passwordFocus }, enabled=!connecting) { user=it }
             RemoteField("Contraseña", pass, secret=true, modifier=Modifier.focusRequester(passwordFocus).focusProperties { up=usernameFocus; down=connectFocus }, enabled=!connecting) { pass=it }
@@ -84,13 +85,14 @@ class MainActivity: ComponentActivity() {
                     if(server.isBlank() || user.isBlank() || pass.isEmpty()) { msg="Completa servidor, usuario y contraseña"; return@launch }
                     connecting=true; msg=""
                     try {
-                        val base=server.trim().trimEnd('/')+"/"
-                        require(Uri.parse(base).scheme in listOf("http", "https") && !Uri.parse(base).host.isNullOrBlank())
-                        val api=Retrofit.Builder().baseUrl(base).addConverterFactory(GsonConverterFactory.create()).build().create(XtreamApi::class.java)
+                        val base=XtreamConnection.normalizeServer(server)
+                        server=base
+                        val api=XtreamConnection.api(base)
                         val r=api.auth(user.trim(),pass)
-                        if(r.user_info?.auth==1) onLogin(Credentials(base,user.trim(),pass)) else msg="Credenciales no válidas"
+                        if(r.user_info?.auth==1) onLogin(Credentials(base,user.trim(),pass))
+                        else msg=if(r.user_info==null) "La respuesta no contiene una cuenta Xtream. Revisa el servidor." else "El proveedor rechazó el acceso. Revisa usuario, contraseña y estado de la cuenta."
                     } catch(e:CancellationException){ throw e }
-                    catch(e:Exception){ msg="No se pudo conectar. Revisa la URL (http:// o https://), la conexión y las credenciales." }
+                    catch(e:Exception){ msg=XtreamConnection.loginError(e) }
                     finally { connecting=false }
                 }
             },enabled=!connecting,modifier=Modifier.focusRequester(connectFocus).focusProperties { up=passwordFocus; down=receiveFocus }.fillMaxWidth().remoteFocus()){Text(if(connecting) "CONECTANDO…" else "CONECTAR")}
@@ -112,7 +114,7 @@ class MainActivity: ComponentActivity() {
     if(editing) DisposableEffect(Unit) {
         val input=EditText(context).apply {
             setSingleLine(true)
-            inputType=if(secret) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_CLASS_TEXT
+            inputType=if(secret) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             setText(value); setSelection(text.length)
         }
         val dialog=AlertDialog.Builder(context).setTitle(label).setView(input)
@@ -152,7 +154,7 @@ class MainActivity: ComponentActivity() {
     var refresh by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Triple<String,String,String>?>(null) }
     var episodes by remember { mutableStateOf<List<Episode>?>(null) }
-    val api=remember(c) { Retrofit.Builder().baseUrl(c.server).addConverterFactory(GsonConverterFactory.create()).build().create(XtreamApi::class.java) }
+    val api=remember(c) { XtreamConnection.api(c.server) }
     fun stream(kind:String,id:String,extension:String)= "${c.server.trimEnd('/')}/$kind/${Uri.encode(c.username)}/${Uri.encode(c.password)}/${Uri.encode(id)}.${Uri.encode(extension)}"
     var live by remember{mutableStateOf<List<LiveStream>>(emptyList())}
     var vod by remember{mutableStateOf<List<VodStream>>(emptyList())}
@@ -172,7 +174,7 @@ class MainActivity: ComponentActivity() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)){
         Text(section,color=Color.White,fontSize=34.sp,fontWeight=FontWeight.Bold)
         if(section=="Ajustes") {
-            Text("REDTVPOINT 0.3.0 · ${Uri.parse(c.server).host.orEmpty()}",color=Color.LightGray)
+            Text("REDTVPOINT 0.3.1 · ${Uri.parse(c.server).host.orEmpty()}",color=Color.LightGray)
             Text("Las credenciales solo se mantienen durante esta sesión.",color=Color.LightGray)
             Button(onClick=logout,modifier=Modifier.remoteFocus()) { Text("Cerrar sesión") }
         }
